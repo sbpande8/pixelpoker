@@ -149,7 +149,7 @@ export default function RoundTable({
   }
 
   return (
-    <div style={{ position: 'relative', width: '100%', maxWidth: W, margin: '0 auto', paddingBottom: charH + cardH + 16 }}>
+    <div style={{ position: 'relative', width: '100%', maxWidth: W, margin: '0 auto', overflow: 'visible' }}>
       {/* SVG Table */}
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
         <ellipse cx={CX + 8} cy={CY + 10} rx={TABLE_RX} ry={TABLE_RY} fill="rgba(0,0,0,0.28)" />
