@@ -165,6 +165,16 @@ function ResultOverlay({ resultType, onClose }) {
   )
 }
 
+// ── Nearest Fibonacci ─────────────────────────────────────────────────────────
+const FIBONACCI = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55]
+function nearestFibonacci(avg) {
+  const n = parseFloat(avg)
+  if (isNaN(n)) return null
+  return FIBONACCI.reduce((best, f) =>
+    Math.abs(f - n) <= Math.abs(best - n) ? f : best
+  , FIBONACCI[0])
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 function Sidebar({ story, votes, revealed, averageVote, roundHistory }) {
   const PX = { fontFamily: "'Press Start 2P', cursive" }
@@ -192,9 +202,15 @@ function Sidebar({ story, votes, revealed, averageVote, roundHistory }) {
               </div>
             ))}
           </div>
-          <div style={{ borderTop: '1px solid #3b3b6b', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ ...PX, fontSize: 7, color: '#6b7280' }}>AVG</span>
-            <span style={{ ...PX, fontSize: 11, color: '#22c55e' }}>{averageVote}</span>
+          <div style={{ borderTop: '1px solid #3b3b6b', marginTop: 10, paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ ...PX, fontSize: 7, color: '#6b7280' }}>AVG</span>
+              <span style={{ ...PX, fontSize: 11, color: '#22c55e' }}>{averageVote}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ ...PX, fontSize: 6, color: '#6b7280', lineHeight: 1.6 }}>NEAREST<br/>ESTIMATE</span>
+              <span style={{ ...PX, fontSize: 14, color: '#a78bfa' }}>{nearestFibonacci(averageVote)}</span>
+            </div>
           </div>
         </div>
       )}

@@ -260,13 +260,14 @@ export default function RoundTable({
               marginBottom: 2,
             }} />
 
-            {/* Name */}
+            {/* Name — always visible for self, only on hover for others */}
             <span style={{
               fontSize: nameFontSz,
               fontFamily: "'Press Start 2P', cursive",
               color: isMe ? '#a78bfa' : '#9ca3af',
               maxWidth: 72, textAlign: 'center',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              visibility: isMe || hoveredPlayer === p.user_id ? 'visible' : 'hidden',
             }}>
               {p.username}{isMe ? ' ★' : ''}
             </span>
