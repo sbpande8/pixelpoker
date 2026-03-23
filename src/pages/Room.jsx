@@ -445,14 +445,14 @@ export default function Room() {
   const epicWarning = !revealed && myVote && !isNaN(parseInt(myVote)) && parseInt(myVote) > 8
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', maxWidth: 1040, margin: '0 auto', padding: '20px 16px', gap: 0 }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', maxWidth: 1040, margin: '0 auto', padding: '20px 16px', gap: 0, overflowX: 'hidden' }}>
 
       {showOverlay && resultType && (
         <ResultOverlay resultType={resultType} onClose={() => setShowOverlay(false)} />
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+      <div className="room-header" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ animation: 'avatarBounce 0.9s ease-in-out infinite', transformOrigin: 'bottom center' }}>
             <div className="avatar-mini" style={{ width: 36, height: 45 }}>
@@ -469,7 +469,7 @@ export default function Room() {
             }}>CHANGE</button>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="room-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={copyRoomLink} className="btn-pixel text-xs py-2 px-3" style={{ fontSize: '9px' }}>
             {copied ? '✓ LINK COPIED!' : '🔗 INVITE LINK'}
           </button>
@@ -487,8 +487,8 @@ export default function Room() {
         <span className="text-xs font-pixel text-pixel-cyan" style={{ letterSpacing: '0.2em' }}>{sess?.code}</span>
       </div>
 
-      {/* Two-column grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 200px', gap: 20, alignItems: 'start', flex: 1 }}>
+      {/* Responsive grid — 2-col desktop, 1-col mobile */}
+      <div className="room-grid">
 
         {/* Main column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -509,7 +509,8 @@ export default function Room() {
             )}
           </div>
 
-          {/* Round table */}
+          {/* Round table — top margin gives room for characters that bleed above the SVG edge */}
+          <div style={{ marginTop: 16 }}>
           <RoundTable
             participants={participants}
             votes={votes}
@@ -521,6 +522,7 @@ export default function Room() {
             onBroadcastThrow={handleBroadcastThrow}
             incomingThrow={incomingThrow}
           />
+          </div>
 
           {/* Card deck */}
           {!revealed && (
@@ -528,7 +530,9 @@ export default function Room() {
               <p className="text-xs text-gray-400 font-pixel mb-4">
                 YOUR VOTE {myVote && <span className="text-pixel-green ml-2">→ {myVote}</span>}
               </p>
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 4 }}>
               <CardDeck selected={myVote} onSelect={castVote} />
+              </div>
               {epicWarning && (
                 <p style={{ textAlign: 'center', marginTop: 12, fontSize: 9, fontFamily: "'Press Start 2P', cursive", color: '#f59e0b', lineHeight: 1.8 }}>
                   ⚠ This is an epic, not a story.
