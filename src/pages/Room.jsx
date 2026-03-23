@@ -166,7 +166,7 @@ function ResultOverlay({ resultType, onClose }) {
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-function Sidebar({ story, votes, revealed, averageVote }) {
+function Sidebar({ story, votes, revealed, averageVote, roundHistory }) {
   const PX = { fontFamily: "'Press Start 2P', cursive" }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 16 }}>
@@ -198,6 +198,29 @@ function Sidebar({ story, votes, revealed, averageVote }) {
           </div>
         </div>
       )}
+
+      {/* Round history */}
+      {roundHistory.length > 0 && (
+        <div style={{ background: '#1a1a3e', border: '1px solid #3b3b6b', borderRadius: 6, padding: 12 }}>
+          <p style={{ ...PX, fontSize: 7, color: '#6b7280', marginBottom: 10 }}>HISTORY</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {roundHistory.map((r, i) => (
+              <div key={i} style={{
+                borderBottom: i < roundHistory.length - 1 ? '1px solid #2a2a4e' : 'none',
+                paddingBottom: i < roundHistory.length - 1 ? 8 : 0,
+              }}>
+                <p style={{ fontSize: 8, color: '#9ca3af', marginBottom: 4, lineHeight: 1.6, wordBreak: 'break-word' }}>
+                  {r.story}
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ ...PX, fontSize: 6, color: '#6b7280' }}>AVG</span>
+                  <span style={{ ...PX, fontSize: 9, color: '#22c55e' }}>{r.average ?? '?'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -219,6 +242,7 @@ export default function Room() {
   const [editingProfile, setEditingProfile] = useState(false)
   const [showOverlay, setShowOverlay]  = useState(false)
   const [incomingThrow, setIncomingThrow] = useState(null)
+  const [roundHistory, setRoundHistory] = useState([])
 
   const hasJoinedRef = useRef(false)
   const channelRef   = useRef(null)
@@ -285,10 +309,18 @@ export default function Room() {
 
   useEffect(() => {
     if (!sess) return
-    const channel = supabase.channel(`room:${sess.id}`)
+    const channel = supabase.channel(`room:${sess.id}`, {
+        config: { broadcast: { self: true } },
+      })
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'sessions', filter: `id=eq.${sess.id}` },
-        payload => setSess(payload.new))
+        payload => {
+          setSess(payload.new)
+          if (payload.new.status === 'voting') {
+            setVotes([])
+            setMyVote(null)
+          }
+        })
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'participants', filter: `session_id=eq.${sess.id}` },
         async () => {
@@ -304,6 +336,9 @@ export default function Room() {
         })
       .on('broadcast', { event: 'throw' }, ({ payload }) => {
         setIncomingThrow({ ...payload, _ts: Date.now() })
+      })
+      .on('broadcast', { event: 'round_end' }, ({ payload }) => {
+        setRoundHistory(prev => [...prev, payload])
       })
       .subscribe()
     channelRef.current = channel
@@ -338,6 +373,11 @@ export default function Room() {
     await supabase.from('sessions').update({ status: 'revealed' }).eq('id', sess.id)
   }
   async function handleNewRound() {
+    // Broadcast round summary to all users (self: true means creator sees it too via listener)
+    channelRef.current?.send({
+      type: 'broadcast', event: 'round_end',
+      payload: { story: sess?.story || '—', average: averageVote },
+    })
     setMyVote(null)
     setVotes([])
     await supabase.from('votes').delete().eq('session_id', sess.id)
@@ -531,6 +571,7 @@ export default function Room() {
           votes={votes}
           revealed={revealed}
           averageVote={averageVote}
+          roundHistory={roundHistory}
         />
       </div>
 
