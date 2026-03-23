@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-pixel-bg text-white min-h-screen;
+    font-family: 'Press Start 2P', cursive;
+    image-rendering: pixelated;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  .btn-pixel {
+    @apply inline-block px-4 py-3 bg-pixel-accent text-white text-xs font-pixel
+           border-2 border-white cursor-pointer select-none
+           transition-all duration-75 active:translate-x-0.5 active:translate-y-0.5;
+    box-shadow: 4px 4px 0px #fff;
+  }
+  .btn-pixel:hover {
+    box-shadow: 2px 2px 0px #fff;
+    transform: translate(2px, 2px);
+  }
+  .btn-pixel:active {
+    box-shadow: none;
+    transform: translate(4px, 4px);
+  }
+
+  .btn-pixel-outline {
+    @apply btn-pixel bg-transparent border-pixel-accent text-pixel-accent;
+    box-shadow: 4px 4px 0px theme('colors.pixel.accent');
+  }
+  .btn-pixel-outline:hover {
+    box-shadow: 2px 2px 0px theme('colors.pixel.accent');
+  }
+  .btn-pixel-outline:active {
+    box-shadow: none;
+  }
+
+  .card-pixel {
+    @apply bg-pixel-card border-2 border-pixel-border p-4;
+    box-shadow: 4px 4px 0px theme('colors.pixel.border');
+  }
+
+  .input-pixel {
+    @apply bg-pixel-bg border-2 border-pixel-border px-3 py-2 text-white text-xs font-pixel
+           w-full outline-none focus:border-pixel-accent;
+  }
+}
+
+/* Avatar bounce — gentle Crossy Road hop */
+@keyframes avatarBounce {
+  0%   { transform: translateY(0px)  scaleX(1)    scaleY(1);    animation-timing-function: ease-in; }
+  40%  { transform: translateY(-7px) scaleX(0.95) scaleY(1.05); animation-timing-function: ease-out; }
+  70%  { transform: translateY(-2px) scaleX(0.98) scaleY(1.02); animation-timing-function: ease-in; }
+  85%  { transform: translateY(-4px) scaleX(0.96) scaleY(1.04); animation-timing-function: ease-out; }
+  100% { transform: translateY(0px)  scaleX(1)    scaleY(1); }
+}
+
+/* Shadow pulse under bouncing avatar */
+@keyframes shadowPulse {
+  0%, 100% { transform: scaleX(1);   opacity: 0.3; }
+  40%       { transform: scaleX(0.7); opacity: 0.12; }
+}
+
+/* Avatar mini — makes SVG fill container in room page */
+.avatar-mini svg {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Home page title — pixel drop shadow pulse + bob */
+@keyframes pixelTitlePulse {
+  0%, 100% {
+    color: #a78bfa;
+    text-shadow:
+      3px 3px 0 #5b21b6,
+      6px 6px 0 #3b1573,
+      9px 9px 0 #1a0a40;
+  }
+  50% {
+    color: #c4b5fd;
+    text-shadow:
+      3px 3px 0 #7c3aed,
+      6px 6px 0 #5b21b6,
+      9px 9px 0 #2d1060;
+  }
+}
+
+@keyframes pixelTitleBob {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes pixelTitleGlitch {
+  0%, 88%, 100% { transform: translate(0, 0); filter: none; }
+  90%  { transform: translate(-3px, 0); filter: hue-rotate(80deg); }
+  92%  { transform: translate(3px, 0);  filter: hue-rotate(-80deg); }
+  94%  { transform: translate(0, 0);    filter: none; }
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Hide scrollbar but keep scroll */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Thought bubble pop-in */
+@keyframes thoughtBubbleIn {
+  0%   { transform: translateX(-50%) scale(0); opacity: 0; }
+  70%  { transform: translateX(-50%) scale(1.1); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+/* Pixel scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
