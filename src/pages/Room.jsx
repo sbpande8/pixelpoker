@@ -309,9 +309,7 @@ export default function Room() {
 
   useEffect(() => {
     if (!sess) return
-    const channel = supabase.channel(`room:${sess.id}`, {
-        config: { broadcast: { self: true } },
-      })
+    const channel = supabase.channel(`room:${sess.id}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'sessions', filter: `id=eq.${sess.id}` },
         payload => {
@@ -373,10 +371,12 @@ export default function Room() {
     await supabase.from('sessions').update({ status: 'revealed' }).eq('id', sess.id)
   }
   async function handleNewRound() {
-    // Broadcast round summary to all users (self: true means creator sees it too via listener)
+    // Update history locally for creator, broadcast to everyone else
+    const roundData = { story: sess?.story || '—', average: averageVote }
+    setRoundHistory(prev => [...prev, roundData])
     channelRef.current?.send({
       type: 'broadcast', event: 'round_end',
-      payload: { story: sess?.story || '—', average: averageVote },
+      payload: roundData,
     })
     setMyVote(null)
     setVotes([])
@@ -393,15 +393,16 @@ export default function Room() {
     await supabase.from('participants').delete().eq('session_id', sess.id).eq('user_id', userId)
   }
   function handleBroadcastThrow(toUserId, obj) {
-    if (!channelRef.current || !user) return
-    channelRef.current.send({
-      type: 'broadcast', event: 'throw',
-      payload: {
-        fromUserId: user.id, toUserId,
-        emoji: obj.emoji, isPositive: obj.isPositive,
-        _id: `${Date.now()}_${Math.random()}`,
-      },
-    })
+    if (!user) return
+    const payload = {
+      fromUserId: user.id, toUserId,
+      emoji: obj.emoji, isPositive: obj.isPositive,
+      _id: `${Date.now()}_${Math.random()}`,
+    }
+    // Trigger locally for the sender immediately (broadcast doesn't echo to self)
+    setIncomingThrow({ ...payload, _ts: Date.now() })
+    // Broadcast to all other clients
+    channelRef.current?.send({ type: 'broadcast', event: 'throw', payload })
   }
   function copyRoomLink() {
     navigator.clipboard.writeText(window.location.href)
