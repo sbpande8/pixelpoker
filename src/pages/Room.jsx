@@ -284,7 +284,7 @@ export default function Room() {
     vals.forEach(v => { counts[v] = (counts[v] || 0) + 1 })
     const countVals = Object.values(counts)
     if (unique.length === 2 && countVals.some(c => c === 1) && vals.length >= 3) return 'oddOneOut'
-    return 'impasse'
+    return null
   }, [revealed, votes])
 
   const averageVote = useMemo(() => {
