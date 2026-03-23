@@ -149,7 +149,7 @@ export default function RoundTable({
   }
 
   return (
-    <div style={{ position: 'relative', width: '100%', maxWidth: W, margin: '0 auto' }}>
+    <div style={{ position: 'relative', width: '100%', maxWidth: W, margin: '0 auto', paddingBottom: charH + cardH + 16 }}>
       {/* SVG Table */}
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
         <ellipse cx={CX + 8} cy={CY + 10} rx={TABLE_RX} ry={TABLE_RY} fill="rgba(0,0,0,0.28)" />
@@ -267,7 +267,7 @@ export default function RoundTable({
               color: isMe ? '#a78bfa' : '#9ca3af',
               maxWidth: 72, textAlign: 'center',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              visibility: isMe || hoveredPlayer === p.user_id ? 'visible' : 'hidden',
+              visibility: 'visible',
             }}>
               {p.username}{isMe ? ' ★' : ''}
             </span>
