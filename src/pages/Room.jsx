@@ -406,6 +406,7 @@ export default function Room() {
     setStoryInput('')
   }
   async function handleKick(userId) {
+    setParticipants(prev => prev.filter(p => p.user_id !== userId))
     await supabase.from('participants').delete().eq('session_id', sess.id).eq('user_id', userId)
   }
   function handleBroadcastThrow(toUserId, obj) {

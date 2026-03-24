@@ -86,8 +86,8 @@ export default function RoundTable({
   const CX = W / 2, CY = H / 2
   const TABLE_RX = N > 10 ? 200 : 185
   const TABLE_RY = N > 10 ? 120 : 110
-  const PLAYER_RX = N > 10 ? 278 : N > 6 ? 262 : 255
-  const PLAYER_RY = N > 10 ? 178 : N > 6 ? 165 : 160
+  const PLAYER_RX = N > 10 ? 240 : N > 6 ? 228 : 218
+  const PLAYER_RY = N > 10 ? 148 : N > 6 ? 138 : 130
   const charW      = N > 10 ? 34 : N > 6 ? 40 : 44
   const charH      = Math.round(charW * (55 / 44))
   const cardW      = N > 10 ? 28 : N > 6 ? 32 : 36
