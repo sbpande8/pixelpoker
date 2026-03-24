@@ -17,7 +17,7 @@ const CARD_COLORS = {
 
 export default function CardDeck({ selected, onSelect, disabled }) {
   return (
-    <div className="flex flex-wrap justify-center gap-3">
+    <div className="flex flex-wrap justify-center gap-3" style={{ paddingTop: 12 }}>
       {FIBONACCI.map((value) => {
         const isSelected = selected === value
         const colors = CARD_COLORS[value]

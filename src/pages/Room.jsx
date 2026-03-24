@@ -548,9 +548,7 @@ export default function Room() {
               <p className="text-xs text-gray-400 font-pixel mb-4">
                 YOUR VOTE {myVote && <span className="text-pixel-green ml-2">→ {myVote}</span>}
               </p>
-              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 4 }}>
               <CardDeck selected={myVote} onSelect={castVote} />
-              </div>
               {epicWarning && (
                 <p style={{ textAlign: 'center', marginTop: 12, fontSize: 9, fontFamily: "'Press Start 2P', cursive", color: '#f59e0b', lineHeight: 1.8 }}>
                   ⚠ This is an epic, not a story.
