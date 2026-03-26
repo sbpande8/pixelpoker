@@ -329,12 +329,17 @@ export default function Room() {
     const channel = supabase.channel(`room:${sess.id}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'sessions', filter: `id=eq.${sess.id}` },
-        payload => {
+        async payload => {
           setSess(payload.new)
           if (payload.new.status === 'voting') {
             setVotes([])
             setMyVote(null)
             setVotedIds(new Set())
+          }
+          if (payload.new.status === 'revealed') {
+            const { data } = await supabase.from('votes').select('*').eq('session_id', sess.id)
+            setVotes(data || [])
+            setMyVote(data?.find(v => v.user_id === user?.id)?.vote || null)
           }
         })
       .on('postgres_changes',
