@@ -342,6 +342,7 @@ export default function Room() {
         async () => {
           const { data } = await supabase.from('participants').select('*').eq('session_id', sess.id)
           setParticipants(data || [])
+          setVotedIds(new Set((data || []).filter(p => p.has_voted).map(p => p.user_id)))
         })
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'votes', filter: `session_id=eq.${sess.id}` },
