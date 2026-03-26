@@ -709,7 +709,7 @@ export const PREMIUM_AVATARS = [
 export const ALL_AVATARS = [...FREE_AVATARS, ...PREMIUM_AVATARS]
 
 export function getAvatar(id) {
-  return ALL_AVATARS.find((a) => a.id === id) || FREE_AVATARS[0]
+  return FREE_AVATARS.find((a) => a.id === id) || FREE_AVATARS[0]
 }
 
 // ── Avatar card ───────────────────────────────────────────────────────────────

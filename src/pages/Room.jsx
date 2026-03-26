@@ -265,7 +265,11 @@ export default function Room() {
 
   // Derived (all before any conditional return)
   const revealed   = sess?.status === 'revealed'
-  const votedIds   = new Set(votes.map(v => v.user_id))
+  const votedIds   = useMemo(() => {
+    const ids = new Set(participants.filter(p => p.has_voted).map(p => p.user_id))
+    if (myVote) ids.add(user?.id)
+    return ids
+  }, [participants, myVote, user?.id])
   const myAvatar   = getAvatar(user?.avatarId)
 
   const isCreator = useMemo(() => {
@@ -380,6 +384,9 @@ export default function Room() {
       { session_id: sess.id, user_id: user.id, username: user.username, vote: value },
       { onConflict: 'session_id,user_id' }
     )
+    await supabase.from('participants')
+      .update({ has_voted: true })
+      .eq('session_id', sess.id).eq('user_id', user.id)
   }, [sess, user])
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -397,6 +404,7 @@ export default function Room() {
     setMyVote(null)
     setVotes([])
     await supabase.from('votes').delete().eq('session_id', sess.id)
+    await supabase.from('participants').update({ has_voted: false }).eq('session_id', sess.id)
     await supabase.from('sessions').update({ status: 'voting', story: '' }).eq('id', sess.id)
     setStoryInput('')
   }
