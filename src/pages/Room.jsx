@@ -259,18 +259,14 @@ export default function Room() {
   const [showOverlay, setShowOverlay]  = useState(false)
   const [incomingThrow, setIncomingThrow] = useState(null)
   const [roundHistory, setRoundHistory] = useState([])
+  const [votedIds, setVotedIds]         = useState(new Set())
 
   const hasJoinedRef = useRef(false)
   const channelRef   = useRef(null)
 
   // Derived (all before any conditional return)
-  const revealed   = sess?.status === 'revealed'
-  const votedIds   = useMemo(() => {
-    const ids = new Set(participants.filter(p => p.has_voted).map(p => p.user_id))
-    if (myVote) ids.add(user?.id)
-    return ids
-  }, [participants, myVote, user?.id])
-  const myAvatar   = getAvatar(user?.avatarId)
+  const revealed = sess?.status === 'revealed'
+  const myAvatar = getAvatar(user?.avatarId)
 
   const isCreator = useMemo(() => {
     try {
@@ -322,6 +318,7 @@ export default function Room() {
       setParticipants(parts || [])
       setVotes(voteData || [])
       setMyVote(voteData?.find(v => v.user_id === user.id)?.vote || null)
+      setVotedIds(new Set((parts || []).filter(p => p.has_voted).map(p => p.user_id)))
       setLoading(false)
     }
     load()
@@ -337,6 +334,7 @@ export default function Room() {
           if (payload.new.status === 'voting') {
             setVotes([])
             setMyVote(null)
+            setVotedIds(new Set())
           }
         })
       .on('postgres_changes',
@@ -357,6 +355,9 @@ export default function Room() {
       })
       .on('broadcast', { event: 'round_end' }, ({ payload }) => {
         setRoundHistory(prev => [...prev, payload])
+      })
+      .on('broadcast', { event: 'player_voted' }, ({ payload }) => {
+        setVotedIds(prev => new Set([...prev, payload.userId]))
       })
       .subscribe()
     channelRef.current = channel
@@ -380,11 +381,11 @@ export default function Room() {
   const castVote = useCallback(async value => {
     if (!sess || sess.status === 'revealed') return
     setMyVote(value)
+    setVotedIds(prev => new Set([...prev, user.id]))
+    channelRef.current?.send({ type: 'broadcast', event: 'player_voted', payload: { userId: user.id } })
     await supabase.from('votes').delete().eq('session_id', sess.id).eq('user_id', user.id)
     await supabase.from('votes').insert({ session_id: sess.id, user_id: user.id, username: user.username, vote: value })
-    await supabase.from('participants')
-      .update({ has_voted: true })
-      .eq('session_id', sess.id).eq('user_id', user.id)
+    await supabase.from('participants').update({ has_voted: true }).eq('session_id', sess.id).eq('user_id', user.id)
   }, [sess, user])
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -401,6 +402,7 @@ export default function Room() {
     })
     setMyVote(null)
     setVotes([])
+    setVotedIds(new Set())
     await supabase.from('votes').delete().eq('session_id', sess.id)
     await supabase.from('participants').update({ has_voted: false }).eq('session_id', sess.id)
     await supabase.from('sessions').update({ status: 'voting', story: '' }).eq('id', sess.id)
