@@ -380,10 +380,8 @@ export default function Room() {
   const castVote = useCallback(async value => {
     if (!sess || sess.status === 'revealed') return
     setMyVote(value)
-    await supabase.from('votes').upsert(
-      { session_id: sess.id, user_id: user.id, username: user.username, vote: value },
-      { onConflict: 'session_id,user_id' }
-    )
+    await supabase.from('votes').delete().eq('session_id', sess.id).eq('user_id', user.id)
+    await supabase.from('votes').insert({ session_id: sess.id, user_id: user.id, username: user.username, vote: value })
     await supabase.from('participants')
       .update({ has_voted: true })
       .eq('session_id', sess.id).eq('user_id', user.id)
@@ -580,7 +578,7 @@ export default function Room() {
           {/* Controls */}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', paddingBottom: 24 }}>
             {!revealed && isCreator && (
-              <button onClick={handleReveal} disabled={votes.length === 0} className="btn-pixel disabled:opacity-50">
+              <button onClick={handleReveal} disabled={votedIds.size === 0} className="btn-pixel disabled:opacity-50">
                 REVEAL VOTES
               </button>
             )}
