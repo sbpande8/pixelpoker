@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { voxelize } from './voxel'
+import { FUNNY_AVATARS } from './funnyAvatars'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VOXEL BLOCK HELPER
@@ -696,6 +697,7 @@ export const FREE_AVATARS = [
   { id: 'pigeon',    name: 'Birdy',       SVG: voxelize(Pigeon)       },
   { id: 'fox',       name: 'Foxy',        SVG: voxelize(Fox)          },
   { id: 'frog',      name: 'Jumpy',       SVG: voxelize(Frog)         },
+  ...FUNNY_AVATARS,
 ]
 
 export const PREMIUM_AVATARS = [
@@ -839,8 +841,8 @@ export default function AvatarSelector({ onComplete, roomCode, initialUsername =
         <p className="text-[9px] font-pixel text-pixel-green mb-1 px-4">
           PIXEL PALS <span className="text-gray-600 ml-2">FREE</span>
         </p>
-        <div className="scrollbar-hide" style={{ overflowX: 'auto', overflowY: 'visible' }}>
-          <div className="flex gap-1 px-4 w-max" style={{ paddingTop: 20, paddingBottom: 8 }}>
+        <div>
+          <div className="flex flex-wrap justify-center gap-1 px-4 mx-auto" style={{ paddingTop: 20, paddingBottom: 8, maxWidth: 900 }}>
             {FREE_AVATARS.map((av, i) => (
               <AvatarCard
                 key={av.id}
