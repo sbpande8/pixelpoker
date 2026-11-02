@@ -8,9 +8,10 @@ import CardDeck from '../components/Voting/CardDeck'
 import ResultsChart from '../components/Voting/ResultsChart'
 import RoundTable from '../components/RoundTable'
 import Footer from '../components/Footer'
+import { voxelize } from '../components/Avatar/voxel'
 
 // ── Result characters ──────────────────────────────────────────────────────────
-const Borat = () => (
+const FlatBorat = () => (
   <svg viewBox="0 0 64 80" width="80" height="100" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', margin: '0 auto' }}>
     <rect x="14" y="2"  width="36" height="14" fill="#1a0a00"/>
     <rect x="10" y="10" width="6"  height="10" fill="#1a0a00"/>
@@ -39,7 +40,7 @@ const Borat = () => (
 )
 
 // Confused character for "Spot the odd one out"
-const Puzzled = () => (
+const FlatPuzzled = () => (
   <svg viewBox="0 0 64 80" width="72" height="90" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', margin: '0 auto' }}>
     <text x="2"  y="18" fontSize="14" fill="#f59e0b" fontFamily="monospace">?</text>
     <text x="48" y="14" fontSize="10" fill="#f59e0b" fontFamily="monospace">?</text>
@@ -64,7 +65,7 @@ const Puzzled = () => (
 )
 
 // Stressed character for "Impasse"
-const Stressed = () => (
+const FlatStressed = () => (
   <svg viewBox="0 0 64 80" width="72" height="90" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', margin: '0 auto' }}>
     <rect x="6"  y="14" width="4" height="6" fill="#60a5fa" rx="2"/>
     <rect x="52" y="10" width="3" height="5" fill="#60a5fa" rx="2"/>
@@ -91,6 +92,10 @@ const Stressed = () => (
     <rect x="36" y="66" width="14" height="12" fill="#374151"/>
   </svg>
 )
+
+const Borat = voxelize(FlatBorat)
+const Puzzled = voxelize(FlatPuzzled)
+const Stressed = voxelize(FlatStressed)
 
 // ── Result overlay ─────────────────────────────────────────────────────────────
 function ResultOverlay({ resultType, onClose }) {
@@ -163,6 +168,18 @@ function ResultOverlay({ resultType, onClose }) {
       </div>
     </div>
   )
+}
+
+// ── Own vote, kept locally (the votes table is hidden until reveal) ──────────
+const myVoteKey = sessionId => `pixelpoker_vote_${sessionId}`
+function loadMyVote(sessionId) {
+  try { return localStorage.getItem(myVoteKey(sessionId)) } catch { return null }
+}
+function saveMyVote(sessionId, value) {
+  try {
+    if (value == null) localStorage.removeItem(myVoteKey(sessionId))
+    else localStorage.setItem(myVoteKey(sessionId), value)
+  } catch { /* storage unavailable */ }
 }
 
 // ── Nearest Fibonacci ─────────────────────────────────────────────────────────
@@ -263,6 +280,8 @@ export default function Room() {
 
   const hasJoinedRef = useRef(false)
   const channelRef   = useRef(null)
+  const voteChainRef = useRef(Promise.resolve())
+  const latestVoteRef = useRef(null)
 
   // Derived (all before any conditional return)
   const revealed = sess?.status === 'revealed'
@@ -317,7 +336,10 @@ export default function Room() {
       ])
       setParticipants(parts || [])
       setVotes(voteData || [])
-      setMyVote(voteData?.find(v => v.user_id === user.id)?.vote || null)
+      const me = (parts || []).find(p => p.user_id === user.id)
+      const dbVote = voteData?.find(v => v.user_id === user.id)?.vote
+      setMyVote(dbVote || (me?.has_voted ? loadMyVote(sessData.id) : null) || null)
+      if (!me?.has_voted) saveMyVote(sessData.id, null)
       setVotedIds(new Set((parts || []).filter(p => p.has_voted).map(p => p.user_id)))
       setLoading(false)
     }
@@ -334,12 +356,15 @@ export default function Room() {
           if (payload.new.status === 'voting') {
             setVotes([])
             setMyVote(null)
+            latestVoteRef.current = null
+            saveMyVote(sess.id, null)
             setVotedIds(new Set())
           }
           if (payload.new.status === 'revealed') {
             const { data } = await supabase.from('votes').select('*').eq('session_id', sess.id)
             setVotes(data || [])
-            setMyVote(data?.find(v => v.user_id === user?.id)?.vote || null)
+            const mine = data?.find(v => v.user_id === user?.id)?.vote
+            if (mine) setMyVote(mine)
           }
         })
       .on('postgres_changes',
@@ -354,7 +379,10 @@ export default function Room() {
         async () => {
           const { data } = await supabase.from('votes').select('*').eq('session_id', sess.id)
           setVotes(data || [])
-          setMyVote(data?.find(v => v.user_id === user?.id)?.vote || null)
+          // Votes are hidden until reveal, so `data` is empty while voting.
+          // Keep the local pick; only adopt the server value when we can see it.
+          const mine = data?.find(v => v.user_id === user?.id)?.vote
+          if (mine) setMyVote(mine)
         })
       .on('broadcast', { event: 'throw' }, ({ payload }) => {
         setIncomingThrow({ ...payload, _ts: Date.now() })
@@ -384,18 +412,27 @@ export default function Room() {
     }
   }, [participants, loading, sess, user?.id, navigate])
 
-  const castVote = useCallback(async value => {
+  // Players can change their pick any time before reveal. Writes are queued so
+  // quick changes never race (delete+insert), and only the latest pick is saved.
+  const castVote = useCallback(value => {
     if (!sess || sess.status === 'revealed') return
+    latestVoteRef.current = value
     setMyVote(value)
+    saveMyVote(sess.id, value)
     setVotedIds(prev => new Set([...prev, user.id]))
     channelRef.current?.send({ type: 'broadcast', event: 'player_voted', payload: { userId: user.id } })
-    await supabase.from('votes').delete().eq('session_id', sess.id).eq('user_id', user.id)
-    await supabase.from('votes').insert({ session_id: sess.id, user_id: user.id, username: user.username, vote: value })
-    await supabase.from('participants').update({ has_voted: true }).eq('session_id', sess.id).eq('user_id', user.id)
+    const sessionId = sess.id
+    voteChainRef.current = voteChainRef.current.then(async () => {
+      if (latestVoteRef.current !== value) return // a newer pick replaced this one
+      await supabase.from('votes').delete().eq('session_id', sessionId).eq('user_id', user.id)
+      await supabase.from('votes').insert({ session_id: sessionId, user_id: user.id, username: user.username, vote: value })
+      await supabase.from('participants').update({ has_voted: true }).eq('session_id', sessionId).eq('user_id', user.id)
+    }).catch(err => console.error('Vote failed', err))
   }, [sess, user])
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   async function handleReveal() {
+    await voteChainRef.current
     await supabase.from('sessions').update({ status: 'revealed' }).eq('id', sess.id)
   }
   async function handleNewRound() {
@@ -407,6 +444,8 @@ export default function Room() {
       payload: roundData,
     })
     setMyVote(null)
+    latestVoteRef.current = null
+    saveMyVote(sess.id, null)
     setVotes([])
     setVotedIds(new Set())
     await supabase.from('votes').delete().eq('session_id', sess.id)
@@ -562,6 +601,11 @@ export default function Room() {
               <p className="text-xs text-gray-400 font-pixel mb-4">
                 YOUR VOTE {myVote && <span className="text-pixel-green ml-2">→ {myVote}</span>}
               </p>
+              {myVote && (
+                <p className="text-[8px] font-pixel text-gray-500 mb-3" style={{ lineHeight: 1.8 }}>
+                  Changed your mind? Pick another card before the reveal.
+                </p>
+              )}
               <CardDeck selected={myVote} onSelect={castVote} />
               {epicWarning && (
                 <p style={{ textAlign: 'center', marginTop: 12, fontSize: 9, fontFamily: "'Press Start 2P', cursive", color: '#f59e0b', lineHeight: 1.8 }}>

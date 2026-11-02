@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { voxelize } from './voxel'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VOXEL BLOCK HELPER
@@ -685,25 +686,25 @@ const Bodybuilder = () => (
 // ── Avatar data ───────────────────────────────────────────────────────────────
 
 export const FREE_AVATARS = [
-  { id: 'chicken',   name: 'Clucky',      SVG: Chicken      },
-  { id: 'cow',       name: 'Mooface',     SVG: Cow          },
-  { id: 'kangaroo',  name: 'Skip',        SVG: Kangaroo     },
-  { id: 'oldman',    name: 'Gramps',      SVG: OldMan       },
-  { id: 'cake',      name: 'Sprinkles',   SVG: BirthdayCake },
-  { id: 'penguin',   name: 'Waddles',     SVG: Penguin      },
-  { id: 'parrot',    name: "Cap'n Pixel", SVG: PiratParrot  },
-  { id: 'pigeon',    name: 'Birdy',       SVG: Pigeon       },
-  { id: 'fox',       name: 'Foxy',        SVG: Fox          },
-  { id: 'frog',      name: 'Jumpy',       SVG: Frog         },
+  { id: 'chicken',   name: 'Clucky',      SVG: voxelize(Chicken)      },
+  { id: 'cow',       name: 'Mooface',     SVG: voxelize(Cow)          },
+  { id: 'kangaroo',  name: 'Skip',        SVG: voxelize(Kangaroo)     },
+  { id: 'oldman',    name: 'Gramps',      SVG: voxelize(OldMan)       },
+  { id: 'cake',      name: 'Sprinkles',   SVG: voxelize(BirthdayCake) },
+  { id: 'penguin',   name: 'Waddles',     SVG: voxelize(Penguin)      },
+  { id: 'parrot',    name: "Cap'n Pixel", SVG: voxelize(PiratParrot)  },
+  { id: 'pigeon',    name: 'Birdy',       SVG: voxelize(Pigeon)       },
+  { id: 'fox',       name: 'Foxy',        SVG: voxelize(Fox)          },
+  { id: 'frog',      name: 'Jumpy',       SVG: voxelize(Frog)         },
 ]
 
 export const PREMIUM_AVATARS = [
-  { id: 'dragon',      name: 'Blaze',    SVG: Dragon      },
-  { id: 'king',        name: 'Rex',      SVG: King        },
-  { id: 'skater',      name: 'Shred',    SVG: Skater      },
-  { id: 'astronaut',   name: 'Cosmos',   SVG: Astronaut   },
-  { id: 'ceo',         name: 'The Boss', SVG: CEO         },
-  { id: 'bodybuilder', name: 'Flex',     SVG: Bodybuilder },
+  { id: 'dragon',      name: 'Blaze',    SVG: voxelize(Dragon)      },
+  { id: 'king',        name: 'Rex',      SVG: voxelize(King)        },
+  { id: 'skater',      name: 'Shred',    SVG: voxelize(Skater)      },
+  { id: 'astronaut',   name: 'Cosmos',   SVG: voxelize(Astronaut)   },
+  { id: 'ceo',         name: 'The Boss', SVG: voxelize(CEO)         },
+  { id: 'bodybuilder', name: 'Flex',     SVG: voxelize(Bodybuilder) },
 ]
 
 export const ALL_AVATARS = [...FREE_AVATARS, ...PREMIUM_AVATARS]
@@ -765,8 +766,8 @@ function AvatarCard({ avatar, selected, premium, delay, onClick }) {
 
       {/* Ground shadow */}
       <div style={{
-        width: 38, height: 7, borderRadius: '50%',
-        background: 'rgba(0,0,0,0.4)',
+        width: 42, height: 7, borderRadius: 2,
+        background: 'rgba(0,0,0,0.5)',
         marginTop: 2,
         animation: `shadowPulse 0.9s ease-in-out infinite`,
         animationDelay: `${delay}s`,
