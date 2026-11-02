@@ -9,6 +9,7 @@ import ResultsChart from '../components/Voting/ResultsChart'
 import RoundTable from '../components/RoundTable'
 import Footer from '../components/Footer'
 import { voxelize } from '../components/Avatar/voxel'
+import { DECKS, getDeck, summarizeVotes, isEpicVote } from '../lib/decks'
 
 // ── Result characters ──────────────────────────────────────────────────────────
 const FlatBorat = () => (
@@ -205,18 +206,39 @@ async function saveVote(sessionId, user, value) {
   return insertError
 }
 
-// ── Nearest Fibonacci ─────────────────────────────────────────────────────────
-const FIBONACCI = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55]
-function nearestFibonacci(avg) {
-  const n = parseFloat(avg)
-  if (isNaN(n)) return null
-  return FIBONACCI.reduce((best, f) =>
-    Math.abs(f - n) <= Math.abs(best - n) ? f : best
-  , FIBONACCI[0])
+// ── Deck switch (Story Points / T-shirt) ──────────────────────────────────────
+function DeckToggle({ deck, canChange, onChange }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <span className="text-[8px] font-pixel text-gray-500">MODE:</span>
+      <div style={{ display: 'inline-flex', border: '2px solid #3b3b6b', boxShadow: '3px 3px 0 #111127' }}>
+        {Object.values(DECKS).map(d => {
+          const active = d.id === deck
+          return (
+            <button
+              key={d.id}
+              onClick={() => canChange && !active && onChange(d.id)}
+              disabled={!canChange && !active}
+              title={canChange ? `Switch to ${d.label}` : 'Only the host can change the mode'}
+              style={{
+                fontFamily: "'Press Start 2P', cursive", fontSize: 8,
+                padding: '7px 10px', border: 'none',
+                background: active ? '#7c3aed' : 'transparent',
+                color: active ? '#ffffff' : canChange ? '#a78bfa' : '#4b5563',
+                cursor: canChange && !active ? 'pointer' : 'default',
+              }}
+            >
+              {d.id === 'tshirt' ? '👕 ' : '🔢 '}{d.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-function Sidebar({ story, votes, revealed, averageVote, roundHistory }) {
+function Sidebar({ story, votes, revealed, summary, roundHistory }) {
   const PX = { fontFamily: "'Press Start 2P', cursive" }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 16 }}>
@@ -244,12 +266,12 @@ function Sidebar({ story, votes, revealed, averageVote, roundHistory }) {
           </div>
           <div style={{ borderTop: '1px solid #3b3b6b', marginTop: 10, paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ ...PX, fontSize: 7, color: '#6b7280' }}>AVG</span>
-              <span style={{ ...PX, fontSize: 11, color: '#22c55e' }}>{averageVote}</span>
+              <span style={{ ...PX, fontSize: 7, color: '#6b7280' }}>{summary?.primaryLabel}</span>
+              <span style={{ ...PX, fontSize: 11, color: '#22c55e' }}>{summary?.primaryValue}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ ...PX, fontSize: 6, color: '#6b7280', lineHeight: 1.6 }}>NEAREST<br/>ESTIMATE</span>
-              <span style={{ ...PX, fontSize: 14, color: '#a78bfa' }}>{nearestFibonacci(averageVote)}</span>
+              <span style={{ ...PX, fontSize: 14, color: '#a78bfa' }}>{summary?.estimate ?? '?'}</span>
             </div>
           </div>
         </div>
@@ -269,7 +291,7 @@ function Sidebar({ story, votes, revealed, averageVote, roundHistory }) {
                   {r.story}
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ ...PX, fontSize: 6, color: '#6b7280' }}>AVG</span>
+                  <span style={{ ...PX, fontSize: 6, color: '#6b7280' }}>{r.label || 'AVG'}</span>
                   <span style={{ ...PX, fontSize: 9, color: '#22c55e' }}>{r.average ?? '?'}</span>
                 </div>
               </div>
@@ -301,14 +323,17 @@ export default function Room() {
   const [roundHistory, setRoundHistory] = useState([])
   const [votedIds, setVotedIds]         = useState(new Set())
   const [voteError, setVoteError]       = useState('')
+  const [deckError, setDeckError]       = useState('')
 
   const hasJoinedRef = useRef(false)
   const channelRef   = useRef(null)
   const voteChainRef = useRef(Promise.resolve())
   const latestVoteRef = useRef(null)
+  const prevSessRef  = useRef(null)
 
   // Derived (all before any conditional return)
   const revealed = sess?.status === 'revealed'
+  const deck     = getDeck(sess?.deck).id
   const myAvatar = getAvatar(user?.avatarId)
 
   const isCreator = useMemo(() => {
@@ -330,17 +355,11 @@ export default function Room() {
     return null
   }, [revealed, votes])
 
-  const averageVote = useMemo(() => {
-    if (!revealed || votes.length === 0) return null
-    const nums = votes.map(v => parseFloat(v.vote)).filter(n => !isNaN(n))
-    if (nums.length === 0) return '?'
-    return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1)
-  }, [revealed, votes])
-
-  const hasEpicVote = useMemo(() => {
-    if (!revealed) return false
-    return votes.some(v => { const n = parseInt(v.vote); return !isNaN(n) && n > 8 })
-  }, [revealed, votes])
+  const summary = useMemo(
+    () => (revealed ? summarizeVotes(votes, deck) : null),
+    [revealed, votes, deck]
+  )
+  const hasEpicVote = !!summary?.epic
 
   // ── All hooks before conditional returns ──────────────────────────────────────
   useEffect(() => {
@@ -349,6 +368,7 @@ export default function Room() {
       const { data: sessData } = await supabase
         .from('sessions').select('*').eq('code', code.toUpperCase()).single()
       if (!sessData) { setError('Room not found.'); setLoading(false); return }
+      prevSessRef.current = sessData
       setSess(sessData)
       await supabase.from('participants').upsert(
         { session_id: sessData.id, user_id: user.id, username: user.username, avatar_id: user.avatarId },
@@ -376,8 +396,15 @@ export default function Room() {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'sessions', filter: `id=eq.${sess.id}` },
         async payload => {
+          const prev = prevSessRef.current
+          prevSessRef.current = payload.new
           setSess(payload.new)
-          if (payload.new.status === 'voting') {
+          // Clear picks only when a new round starts or the deck changes,
+          // not on every session update (e.g. the host setting the story).
+          const newRound =
+            payload.new.status === 'voting' &&
+            (prev?.status === 'revealed' || (prev?.deck || 'points') !== (payload.new.deck || 'points'))
+          if (newRound) {
             setVotes([])
             setMyVote(null)
             latestVoteRef.current = null
@@ -470,7 +497,9 @@ export default function Room() {
   }
   async function handleNewRound() {
     // Update history locally for creator, broadcast to everyone else
-    const roundData = { story: sess?.story || '—', average: averageVote }
+    const roundData = deck === 'tshirt'
+      ? { story: sess?.story || '—', label: 'SIZE', average: summary?.estimate ?? '?' }
+      : { story: sess?.story || '—', label: 'AVG', average: summary?.primaryValue ?? '?' }
     setRoundHistory(prev => [...prev, roundData])
     channelRef.current?.send({
       type: 'broadcast', event: 'round_end',
@@ -485,6 +514,22 @@ export default function Room() {
     await supabase.from('participants').update({ has_voted: false }).eq('session_id', sess.id)
     await supabase.from('sessions').update({ status: 'voting', story: '' }).eq('id', sess.id)
     setStoryInput('')
+  }
+  async function handleSetDeck(nextDeck) {
+    if (!sess || nextDeck === deck) return
+    if (votedIds.size > 0 && !window.confirm('Switching mode clears the votes in this round. Continue?')) return
+    setDeckError('')
+    const { error } = await supabase.rpc('set_deck', { p_session_id: sess.id, p_deck: nextDeck })
+    if (error) {
+      console.error('Deck switch failed', error)
+      setDeckError('Could not switch mode. Has the deck database update been run?')
+      return
+    }
+    setMyVote(null)
+    latestVoteRef.current = null
+    saveMyVote(sess.id, null)
+    setVotes([])
+    setVotedIds(new Set())
   }
   async function handleSetStory() {
     if (!storyInput.trim()) return
@@ -546,7 +591,7 @@ export default function Room() {
     </div>
   )
 
-  const epicWarning = !revealed && myVote && !isNaN(parseInt(myVote)) && parseInt(myVote) > 8
+  const epicWarning = !revealed && isEpicVote(myVote, deck)
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', maxWidth: 1040, margin: '0 auto', padding: '20px 16px', gap: 0, overflowX: 'hidden' }}>
@@ -611,6 +656,12 @@ export default function Room() {
                 <button onClick={handleSetStory} className="btn-pixel text-xs px-3">SET</button>
               </div>
             )}
+            <div style={{ marginTop: 12 }}>
+              <DeckToggle deck={deck} canChange={isCreator} onChange={handleSetDeck} />
+              {deckError && (
+                <p className="text-[8px] font-pixel mt-2" style={{ color: '#ef4444', lineHeight: 1.8 }}>⚠ {deckError}</p>
+              )}
+            </div>
           </div>
 
           {/* Round table — top margin gives room for characters that bleed above the SVG edge */}
@@ -644,7 +695,7 @@ export default function Room() {
                   ⚠ {voteError}
                 </p>
               )}
-              <CardDeck selected={myVote} onSelect={castVote} />
+              <CardDeck deck={deck} selected={myVote} onSelect={castVote} />
               {epicWarning && (
                 <p style={{ textAlign: 'center', marginTop: 12, fontSize: 9, fontFamily: "'Press Start 2P', cursive", color: '#f59e0b', lineHeight: 1.8 }}>
                   ⚠ This is an epic, not a story.
@@ -656,7 +707,7 @@ export default function Room() {
           {/* Results chart */}
           {revealed && votes.length > 0 && (
             <>
-              <ResultsChart votes={votes} />
+              <ResultsChart votes={votes} deck={deck} />
               {hasEpicVote && (
                 <p style={{ textAlign: 'center', fontSize: 9, fontFamily: "'Press Start 2P', cursive", color: '#f59e0b', lineHeight: 1.8 }}>
                   ⚠ This is an epic, not a story.
@@ -686,7 +737,7 @@ export default function Room() {
           story={sess?.story}
           votes={votes}
           revealed={revealed}
-          averageVote={averageVote}
+          summary={summary}
           roundHistory={roundHistory}
         />
       </div>
