@@ -207,31 +207,64 @@ async function saveVote(sessionId, user, value) {
 }
 
 // ── Deck switch (Story Points / T-shirt) ──────────────────────────────────────
+const LOCKED_HINT = 'Only the room creator can change the mode'
+
 function DeckToggle({ deck, canChange, onChange }) {
+  const [showHint, setShowHint] = useState(false)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       <span className="text-[8px] font-pixel text-gray-500">MODE:</span>
-      <div style={{ display: 'inline-flex', border: '2px solid #3b3b6b', boxShadow: '3px 3px 0 #111127' }}>
-        {Object.values(DECKS).map(d => {
-          const active = d.id === deck
-          return (
-            <button
-              key={d.id}
-              onClick={() => canChange && !active && onChange(d.id)}
-              disabled={!canChange && !active}
-              title={canChange ? `Switch to ${d.label}` : 'Only the host can change the mode'}
-              style={{
-                fontFamily: "'Press Start 2P', cursive", fontSize: 8,
-                padding: '7px 10px', border: 'none',
-                background: active ? '#7c3aed' : 'transparent',
-                color: active ? '#ffffff' : canChange ? '#a78bfa' : '#4b5563',
-                cursor: canChange && !active ? 'pointer' : 'default',
-              }}
-            >
-              {d.id === 'tshirt' ? '👕 ' : '🔢 '}{d.label}
-            </button>
-          )
-        })}
+      <div
+        style={{ position: 'relative', display: 'inline-flex' }}
+        title={canChange ? undefined : LOCKED_HINT}
+        onMouseEnter={() => !canChange && setShowHint(true)}
+        onMouseLeave={() => setShowHint(false)}
+        onClick={() => !canChange && setShowHint(v => !v)} // tap on mobile
+      >
+        <div
+          role="group"
+          aria-label="Voting mode"
+          style={{
+            display: 'inline-flex', border: '2px solid #3b3b6b', boxShadow: '3px 3px 0 #111127',
+            opacity: canChange ? 1 : 0.55,
+            cursor: canChange ? 'default' : 'not-allowed',
+          }}
+        >
+          {Object.values(DECKS).map(d => {
+            const active = d.id === deck
+            return (
+              <button
+                key={d.id}
+                onClick={() => canChange && !active && onChange(d.id)}
+                disabled={!canChange}
+                aria-pressed={active}
+                aria-label={canChange ? `Switch to ${d.label}` : `${d.label}. ${LOCKED_HINT}`}
+                style={{
+                  fontFamily: "'Press Start 2P', cursive", fontSize: 8,
+                  padding: '7px 10px', border: 'none',
+                  background: active ? '#7c3aed' : 'transparent',
+                  color: active ? '#ffffff' : canChange ? '#a78bfa' : '#6b7280',
+                  cursor: canChange && !active ? 'pointer' : canChange ? 'default' : 'not-allowed',
+                  // Disabled buttons swallow hover events; let the wrapper show the hint
+                  pointerEvents: canChange ? 'auto' : 'none',
+                }}
+              >
+                {d.id === 'tshirt' ? '👕 ' : '🔢 '}{d.label}
+              </button>
+            )
+          })}
+        </div>
+        {!canChange && <span aria-hidden style={{ marginLeft: 6, fontSize: 11, alignSelf: 'center' }}>🔒</span>}
+        {showHint && !canChange && (
+          <div role="tooltip" style={{
+            position: 'absolute', top: '100%', left: 0, marginTop: 8, zIndex: 300,
+            background: '#0f0f23', border: '1px solid #3b3b6b', boxShadow: '3px 3px 0 #111127',
+            padding: '6px 8px', whiteSpace: 'nowrap',
+            fontFamily: "'Press Start 2P', cursive", fontSize: 7, color: '#e5e7eb',
+          }}>
+            {LOCKED_HINT}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -337,11 +370,13 @@ export default function Room() {
   const myAvatar = getAvatar(user?.avatarId)
 
   const isCreator = useMemo(() => {
+    // Rooms created after the creator_id migration know their creator server-side.
+    if (sess?.creator_id) return sess.creator_id === user?.id
     try {
       const saved = JSON.parse(localStorage.getItem('pixelpoker_creator') || '{}')
       return saved.code === code?.toUpperCase() && saved.userId === user?.id
     } catch { return false }
-  }, [code, user?.id])
+  }, [code, user?.id, sess?.creator_id])
 
   const resultType = useMemo(() => {
     if (!revealed || votes.length === 0) return null
@@ -519,10 +554,17 @@ export default function Room() {
     if (!sess || nextDeck === deck) return
     if (votedIds.size > 0 && !window.confirm('Switching mode clears the votes in this round. Continue?')) return
     setDeckError('')
-    const { error } = await supabase.rpc('set_deck', { p_session_id: sess.id, p_deck: nextDeck })
+    if (!isCreator) return
+    let { error } = await supabase.rpc('set_deck', { p_session_id: sess.id, p_deck: nextDeck, p_user_id: user.id })
+    if (error && (error.code === 'PGRST202' || error.code === '42883')) {
+      // Older 2-argument set_deck() still installed
+      ({ error } = await supabase.rpc('set_deck', { p_session_id: sess.id, p_deck: nextDeck }))
+    }
     if (error) {
       console.error('Deck switch failed', error)
-      setDeckError('Could not switch mode. Has the deck database update been run?')
+      setDeckError(/room creator/i.test(error.message || '')
+        ? LOCKED_HINT
+        : 'Could not switch mode. Has the deck database update been run?')
       return
     }
     setMyVote(null)

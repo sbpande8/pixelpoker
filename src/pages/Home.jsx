@@ -31,9 +31,13 @@ export default function Home() {
     setLoading(true)
     setError('')
     const code = randomCode()
-    const { error: err } = await supabase
-      .from('sessions')
-      .insert({ code, name: `${user.username}'s Session`, status: 'voting' })
+    const row = { code, name: `${user.username}'s Session`, status: 'voting', creator_id: user.id }
+    let { error: err } = await supabase.from('sessions').insert(row)
+    if (err && (err.code === 'PGRST204' || err.code === '42703')) {
+      // creator_id column not added yet (migration 20261104 not run)
+      const { creator_id, ...legacyRow } = row
+      ;({ error: err } = await supabase.from('sessions').insert(legacyRow))
+    }
 
     if (err) { setError(err.message); setLoading(false); return }
     localStorage.setItem('pixelpoker_creator', JSON.stringify({ code, userId: user.id }))
