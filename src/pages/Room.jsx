@@ -182,6 +182,29 @@ function saveMyVote(sessionId, value) {
   } catch { /* storage unavailable */ }
 }
 
+// Saves (or replaces) a vote. Votes are hidden by RLS until reveal, so the
+// client cannot delete its own earlier vote; the `cast_vote` database function
+// (supabase/migrations/20261102_cast_vote.sql) does the replace server-side.
+// Returns an error object, or null on success.
+async function saveVote(sessionId, user, value) {
+  const { error } = await supabase.rpc('cast_vote', {
+    p_session_id: sessionId,
+    p_user_id: user.id,
+    p_username: user.username,
+    p_vote: value,
+  })
+  if (!error) return null
+  // Function not installed yet: fall back to the old path (works for a first vote only).
+  const msg = error.message || ''
+  const missing = error.code === 'PGRST202' || error.code === '42883' || (/cast_vote/.test(msg) && /not find|does not exist/i.test(msg))
+  if (!missing) return error
+  await supabase.from('votes').delete().eq('session_id', sessionId).eq('user_id', user.id)
+  const { error: insertError } = await supabase.from('votes')
+    .insert({ session_id: sessionId, user_id: user.id, username: user.username, vote: value })
+  await supabase.from('participants').update({ has_voted: true }).eq('session_id', sessionId).eq('user_id', user.id)
+  return insertError
+}
+
 // ── Nearest Fibonacci ─────────────────────────────────────────────────────────
 const FIBONACCI = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55]
 function nearestFibonacci(avg) {
@@ -277,6 +300,7 @@ export default function Room() {
   const [incomingThrow, setIncomingThrow] = useState(null)
   const [roundHistory, setRoundHistory] = useState([])
   const [votedIds, setVotedIds]         = useState(new Set())
+  const [voteError, setVoteError]       = useState('')
 
   const hasJoinedRef = useRef(false)
   const channelRef   = useRef(null)
@@ -358,6 +382,7 @@ export default function Room() {
             setMyVote(null)
             latestVoteRef.current = null
             saveMyVote(sess.id, null)
+            setVoteError('')
             setVotedIds(new Set())
           }
           if (payload.new.status === 'revealed') {
@@ -424,10 +449,18 @@ export default function Room() {
     const sessionId = sess.id
     voteChainRef.current = voteChainRef.current.then(async () => {
       if (latestVoteRef.current !== value) return // a newer pick replaced this one
-      await supabase.from('votes').delete().eq('session_id', sessionId).eq('user_id', user.id)
-      await supabase.from('votes').insert({ session_id: sessionId, user_id: user.id, username: user.username, vote: value })
-      await supabase.from('participants').update({ has_voted: true }).eq('session_id', sessionId).eq('user_id', user.id)
-    }).catch(err => console.error('Vote failed', err))
+      const error = await saveVote(sessionId, user, value)
+      if (latestVoteRef.current !== value) return
+      if (error) {
+        console.error('Vote failed', error)
+        setVoteError('Could not save your vote. Please pick again.')
+      } else {
+        setVoteError('')
+      }
+    }).catch(err => {
+      console.error('Vote failed', err)
+      setVoteError('Could not save your vote. Please pick again.')
+    })
   }, [sess, user])
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -604,6 +637,11 @@ export default function Room() {
               {myVote && (
                 <p className="text-[8px] font-pixel text-gray-500 mb-3" style={{ lineHeight: 1.8 }}>
                   Changed your mind? Pick another card before the reveal.
+                </p>
+              )}
+              {voteError && (
+                <p className="text-[8px] font-pixel mb-3" style={{ color: '#ef4444', lineHeight: 1.8 }}>
+                  ⚠ {voteError}
                 </p>
               )}
               <CardDeck selected={myVote} onSelect={castVote} />
