@@ -1,22 +1,13 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { getDeck, summarizeVotes } from '../../lib/decks'
 
 const COLORS = ['#7c3aed', '#3b82f6', '#22c55e', '#f97316', '#ef4444', '#ec4899', '#06b6d4']
-const FIBONACCI = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55]
-
-function nearestFibonacci(avg) {
-  const n = parseFloat(avg)
-  if (isNaN(n)) return null
-  return FIBONACCI.reduce((best, f) =>
-    Math.abs(f - n) <= Math.abs(best - n) ? f : best
-  , FIBONACCI[0])
-}
-
-function CustomTooltip({ active, payload }) {
+function CustomTooltip({ active, payload, unit }) {
   if (!active || !payload?.length) return null
   const { value, count } = payload[0].payload
   return (
     <div style={{ background: '#0f0f23', border: '1px solid #3b3b6b', padding: '6px 10px' }}>
-      <p style={{ fontFamily: "'Press Start 2P', cursive", fontSize: 10, color: '#a78bfa' }}>{value} pts</p>
+      <p style={{ fontFamily: "'Press Start 2P', cursive", fontSize: 10, color: '#a78bfa' }}>{value}{unit ? ` ${unit}` : ''}</p>
       <p style={{ fontFamily: "'Press Start 2P', cursive", fontSize: 8, color: '#9ca3af' }}>
         {count} vote{count !== 1 ? 's' : ''}
       </p>
@@ -24,7 +15,8 @@ function CustomTooltip({ active, payload }) {
   )
 }
 
-export default function ResultsChart({ votes }) {
+export default function ResultsChart({ votes, deck = 'points' }) {
+  const { cards, unit } = getDeck(deck)
   const tally = votes.reduce((acc, v) => {
     acc[v.vote] = (acc[v.vote] || 0) + 1
     return acc
@@ -33,16 +25,13 @@ export default function ResultsChart({ votes }) {
   const data = Object.entries(tally)
     .map(([value, count]) => ({ value, count }))
     .sort((a, b) => {
-      const order = ['0', '1', '2', '3', '5', '8', '13', '21', '34', '55', '?', '∞']
-      return order.indexOf(a.value) - order.indexOf(b.value)
+      return cards.indexOf(a.value) - cards.indexOf(b.value)
     })
 
   const total = votes.length
-  const numericVotes = votes.map(v => parseFloat(v.vote)).filter(n => !isNaN(n))
-  const avg = numericVotes.length
-    ? (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(1)
-    : null
-  const nearest = avg !== null ? nearestFibonacci(avg) : null
+  const summary = summarizeVotes(votes, deck)
+  const nearest = summary?.estimate ?? null
+  const avg = deck === 'points' && summary?.primaryValue !== '?' ? summary?.primaryValue : null
 
   return (
     <div className="card-pixel flex flex-col gap-4">
@@ -70,7 +59,7 @@ export default function ResultsChart({ votes }) {
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip unit={unit} />} />
           </PieChart>
         </ResponsiveContainer>
 

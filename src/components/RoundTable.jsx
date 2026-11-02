@@ -152,8 +152,20 @@ export default function RoundTable({
     <div style={{ position: 'relative', width: '100%', maxWidth: W, margin: '0 auto', overflow: 'visible' }}>
       {/* SVG Table */}
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
-        <ellipse cx={CX + 8} cy={CY + 10} rx={TABLE_RX} ry={TABLE_RY} fill="rgba(0,0,0,0.28)" />
-        <ellipse cx={CX} cy={CY} rx={TABLE_RX} ry={TABLE_RY} fill="#1a4a2a" />
+        <defs>
+          <radialGradient id="feltLight" cx="45%" cy="38%" r="70%">
+            <stop offset="0%" stopColor="#24603a" />
+            <stop offset="100%" stopColor="#173f25" />
+          </radialGradient>
+        </defs>
+        {/* Ground shadow */}
+        <ellipse cx={CX + 10} cy={CY + 30} rx={TABLE_RX + 6} ry={TABLE_RY + 4} fill="rgba(0,0,0,0.35)" />
+        {/* Table thickness — a chunky wooden slab under the felt */}
+        <rect x={CX - TABLE_RX} y={CY} width={TABLE_RX * 2} height={22} fill="#5b3412" />
+        <ellipse cx={CX} cy={CY + 22} rx={TABLE_RX} ry={TABLE_RY} fill="#4a2a0e" />
+        <ellipse cx={CX} cy={CY + 11} rx={TABLE_RX} ry={TABLE_RY} fill="#6b3f17" />
+        {/* Felt top */}
+        <ellipse cx={CX} cy={CY} rx={TABLE_RX} ry={TABLE_RY} fill="url(#feltLight)" />
         <ellipse cx={CX} cy={CY} rx={TABLE_RX} ry={TABLE_RY} fill="none" stroke="#2d6b3d" strokeWidth="12" />
         <ellipse cx={CX} cy={CY} rx={TABLE_RX} ry={TABLE_RY} fill="none" stroke="#4a9a5a" strokeWidth="3" />
         <ellipse cx={CX} cy={CY} rx={TABLE_RX - 22} ry={TABLE_RY - 18} fill="none" stroke="#164030" strokeWidth="2" strokeDasharray="10 6" />
@@ -251,10 +263,10 @@ export default function RoundTable({
               </div>
             </div>
 
-            {/* Shadow */}
+            {/* Blocky ground shadow */}
             <div style={{
-              width: charW * 0.68, height: 5, borderRadius: '50%',
-              background: 'rgba(0,0,0,0.3)',
+              width: charW * 0.72, height: 5, borderRadius: 2,
+              background: 'rgba(0,0,0,0.45)',
               animation: 'shadowPulse 0.9s ease-in-out infinite',
               animationDelay: `${i * 0.13}s`,
               marginBottom: 2,
@@ -280,6 +292,7 @@ export default function RoundTable({
               background: pVote ? '#2d1a3b' : hasVoted ? '#1a3c34' : '#1a1a3e',
               color: pVote ? '#a78bfa' : hasVoted ? '#22c55e' : '#6b7280',
               borderRadius: 4,
+              boxShadow: `3px 3px 0 ${pVote ? '#4c1d95' : hasVoted ? '#14532d' : '#111127'}, inset 0 2px 0 rgba(255,255,255,0.12)`,
               fontSize: pVote && pVote.length > 2 ? 7 : (N > 10 ? 9 : 11),
               fontFamily: "'Press Start 2P', cursive",
             }}>
