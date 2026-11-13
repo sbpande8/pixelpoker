@@ -402,11 +402,12 @@ export default function Room() {
     async function load() {
       const { data: sessData } = await supabase
         .from('sessions').select('*').eq('code', code.toUpperCase()).single()
-      if (!sessData) { setError('Room not found.'); setLoading(false); return }
+      if (!sessData) { setError('Room not found. Rooms are deleted after 24 hours without activity.'); setLoading(false); return }
       prevSessRef.current = sessData
       setSess(sessData)
       await supabase.from('participants').upsert(
-        { session_id: sessData.id, user_id: user.id, username: user.username, avatar_id: user.avatarId },
+        // last_seen marks the room as active, so the hourly cleanup keeps it
+        { session_id: sessData.id, user_id: user.id, username: user.username, avatar_id: user.avatarId, last_seen: new Date().toISOString() },
         { onConflict: 'session_id,user_id' }
       )
       const [{ data: parts }, { data: voteData }] = await Promise.all([
@@ -697,6 +698,11 @@ export default function Room() {
                 />
                 <button onClick={handleSetStory} className="btn-pixel text-xs px-3">SET</button>
               </div>
+            )}
+            {!revealed && (
+              <p className="text-[7px] font-pixel text-gray-600 mt-2" style={{ lineHeight: 1.8 }}>
+                Rooms, names, stories and votes are deleted after 24h without activity.
+              </p>
             )}
             <div style={{ marginTop: 12 }}>
               <DeckToggle deck={deck} canChange={isCreator} onChange={handleSetDeck} />

@@ -31,7 +31,8 @@ export default function Home() {
     setLoading(true)
     setError('')
     const code = randomCode()
-    const row = { code, name: `${user.username}'s Session`, status: 'voting', creator_id: user.id }
+    // Generic name: no personal data in the room record
+    const row = { code, name: 'Planning Session', status: 'voting', creator_id: user.id }
     let { error: err } = await supabase.from('sessions').insert(row)
     if (err && (err.code === 'PGRST204' || err.code === '42703')) {
       // creator_id column not added yet (migration 20261104 not run)
@@ -54,7 +55,7 @@ export default function Home() {
       .eq('code', joinCode.trim().toUpperCase())
       .single()
 
-    if (!sess) { setError('Room not found. Check the code and try again.'); setLoading(false); return }
+    if (!sess) { setError('Room not found. Check the code. Rooms are deleted after 24h without activity.'); setLoading(false); return }
     navigate(`/room/${sess.code}`)
   }
 
